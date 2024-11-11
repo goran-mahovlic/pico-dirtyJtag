@@ -14,6 +14,8 @@ set(PICO_SDK_PATH $ENV{PICO_SDK_PATH})
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
+set(PICO_BOARD pico_w)
+
 project(dirtyJtag C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
@@ -29,6 +31,7 @@ add_executable(dirtyJtag
 		get_serial.c
 		cmd.c
         led.c
+		tca9534.c
 )
 
 target_include_directories(dirtyJtag PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -38,21 +41,23 @@ pico_generate_pio_header(dirtyJtag ${CMAKE_CURRENT_LIST_DIR}/jtag.pio)
 pico_set_program_name(dirtyJtag "dirtyJtag")
 pico_set_program_version(dirtyJtag "0.1")
 
-#pico_enable_stdio_uart(dirtyJtag 0)
-#pico_enable_stdio_usb(dirtyJtag 0)
+pico_enable_stdio_uart(dirtyJtag 0)
+#pico_enable_stdio_usb(dirtyJtag 1)
 
 # Add the standard library to the build
 target_link_libraries(dirtyJtag PRIVATE pico_stdlib)
 
 # Add any user requested libraries
 target_link_libraries(dirtyJtag PRIVATE
-    hardware_pio
+    	hardware_pio
+    	hardware_adc
 	hardware_dma
+	hardware_i2c
 	pico_unique_id
 	tinyusb_device
 	tinyusb_board
 	pico_multicore
+	pico_async_context_threadsafe_background
 )
 
 pico_add_extra_outputs(dirtyJtag)
-

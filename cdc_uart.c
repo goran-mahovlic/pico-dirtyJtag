@@ -28,6 +28,10 @@
 #include "led.h"
 #include "tusb.h"
 #include "cdc_uart.h"
+
+uint8_t cmd_buff[TX_BUFFER_SIZE];
+bool uart_rx_available = false;
+
 static uint8_t tx_bufs[2][TX_BUFFER_SIZE] __attribute__((aligned(TX_BUFFER_SIZE)));
 static struct uart_device
 {
@@ -127,7 +131,7 @@ void cdc_uart_init( uart_inst_t *const uart_, int uart_rx_pin, int uart_tx_pin )
 	uart_init(uart->inst, USBUSART_BAUDRATE);
 	uart_set_hw_flow(uart->inst, false, false);
 	uart_set_format(uart->inst, 8, 1, UART_PARITY_NONE);
-	uart_set_fifo_enabled(uart->inst, true);
+	uart_set_fifo_enabled(uart->inst, false);
 	uart->tx_buf = tx_bufs[uart_index];
 	uart->tx_dma_channel = setup_usart_tx_dma(uart->inst, uart->tx_buf, TX_BUFFER_SIZE);
 	uart->rx_dma_channel = setup_usart_rx_dma(uart->inst, &uart->rx_buf[0], dma_handler, RX_BUFFER_SIZE);
@@ -213,18 +217,26 @@ void cdc_uart_task(void)
 				tx_len = tud_cdc_n_read(uart->index, (void*)uart->tx_write_address, watermark);
 				//be careful about modifying tx_write_address as it is used in the IRQ handler
 				volatile uint8_t *l_tx_write_address = uart->tx_write_address + tx_len;
-				if (l_tx_write_address >= &uart->tx_buf[TX_BUFFER_SIZE])
-					uart->tx_write_address = l_tx_write_address - TX_BUFFER_SIZE;
-				else
-					uart->tx_write_address = l_tx_write_address;
-				// restart dma if not active
-				if (!dma_channel_is_busy(uart->tx_dma_channel))
-				{
-					uint8_t *ra = (uint8_t *)(dma_channel_hw_addr(uart->tx_dma_channel)->read_addr);
-					size_t space = (uart->tx_write_address >= ra) ? (uart->tx_write_address - ra) : (uart->tx_write_address + TX_BUFFER_SIZE - ra);
-					if (space > 0)
-						dma_channel_set_trans_count(uart->tx_dma_channel, space, true);
+				if(tx_len == RX_BUFFER_SIZE){ 
+					if (l_tx_write_address >= &uart->tx_buf[TX_BUFFER_SIZE])
+						uart->tx_write_address = l_tx_write_address - TX_BUFFER_SIZE;
+					else
+						uart->tx_write_address = l_tx_write_address;
+					// restart dma if not active
+					if (!dma_channel_is_busy(uart->tx_dma_channel))
+					{
+						uint8_t *ra = (uint8_t *)(dma_channel_hw_addr(uart->tx_dma_channel)->read_addr);
+						size_t space = (uart->tx_write_address >= ra) ? (uart->tx_write_address - ra) : (uart->tx_write_address + TX_BUFFER_SIZE - ra);
+						if (space > 0)
+							dma_channel_set_trans_count(uart->tx_dma_channel, space, true);
+					}
+				
+					memcpy( &cmd_buff, &uart->tx_buf[0], RX_BUFFER_SIZE * sizeof(uint8_t));
+					
+					uart_rx_available = true;				
 				}
+				//printf("Size: %i\n", tx_len);
+				
 				led_rx( 0 );
 			}
 		}

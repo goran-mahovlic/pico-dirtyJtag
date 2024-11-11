@@ -33,10 +33,11 @@
 /* For speed this is set to the USB transfer size */
 #define FULL_SWO_PACKET (64)
 
-#define TX_BUFFER_SIZE (4096) //needs to be a power of 2
-#define RX_BUFFER_SIZE (4096)
+#define TX_BUFFER_SIZE (16) //needs to be a power of 2
+#define RX_BUFFER_SIZE (16)
 
-
+extern uint8_t cmd_buff[TX_BUFFER_SIZE];
+extern bool uart_rx_available;
 
 #ifdef USB_CDC_UART_BRIDGE
 void cdc_uart_init( uart_inst_t *const uart, int uart_rx_pin, int uart_tx_pin );

@@ -1,0 +1,3 @@
+[submodule "rp2040_tca9534"]
+	path = rp2040_tca9534
+	url = https://github.com/dexterlb/rp2040_tca9534.git
